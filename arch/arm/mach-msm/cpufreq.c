@@ -312,6 +312,9 @@ static int __cpuinit msm_cpufreq_init(struct cpufreq_policy *policy)
 			policy->cpu, cur_freq, table[index].frequency);
 	policy->cur = table[index].frequency;
 
+	// stock max freq is 1512000
+	policy->cur = 1512000;
+
 	policy->cpuinfo.transition_latency =
 		acpuclk_get_switch_time() * NSEC_PER_USEC;
 
