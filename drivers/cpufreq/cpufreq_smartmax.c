@@ -124,14 +124,14 @@ extern int tegra_input_boost (struct cpufreq_policy *policy,
 #define DEFAULT_AWAKE_IDEAL_FREQ 702000
 #define DEFAULT_RAMP_UP_STEP 300000
 #define DEFAULT_RAMP_DOWN_STEP 200000
-#define DEFAULT_MAX_CPU_LOAD 70
-#define DEFAULT_MIN_CPU_LOAD 40
+#define DEFAULT_MAX_CPU_LOAD 80
+#define DEFAULT_MIN_CPU_LOAD 50
 #define DEFAULT_UP_RATE 30000
 #define DEFAULT_DOWN_RATE 60000
 #define DEFAULT_SAMPLING_RATE 30000
-#define DEFAULT_INPUT_BOOST_DURATION 1200000
-#define DEFAULT_TOUCH_POKE_FREQ 1350000
-#define DEFAULT_BOOST_FREQ 1350000
+#define DEFAULT_INPUT_BOOST_DURATION 90000
+#define DEFAULT_TOUCH_POKE_FREQ 1134000
+#define DEFAULT_BOOST_FREQ 1134000
 #define DEFAULT_IO_IS_BUSY 0
 #define DEFAULT_IGNORE_NICE 1
 #endif
@@ -255,7 +255,6 @@ static u64 timer_stat[4] = {0, 0, 0, 0};
  * dbs_mutex protects dbs_enable in governor start/stop.
  */
 static DEFINE_MUTEX(dbs_mutex);
-static struct workqueue_struct *smartmax_wq;
 
 static bool boost_task_alive = false;
 static struct task_struct *boost_task;
@@ -332,14 +331,11 @@ static inline u64 get_cpu_idle_time_jiffy(unsigned int cpu, u64 *wall) {
 	return jiffies_to_usecs(idle_time);
 }
 
-static inline u64 get_cpu_idle_time(unsigned int cpu, u64 *wall)
-{
-	u64 idle_time = get_cpu_idle_time_us(cpu, NULL);
+static inline u64 get_cpu_idle_time(unsigned int cpu, u64 *wall) {
+	u64 idle_time = get_cpu_idle_time_us(cpu, wall);
 
 	if (idle_time == -1ULL)
 		return get_cpu_idle_time_jiffy(cpu, wall);
-	else
-		idle_time += get_cpu_iowait_time_us(cpu, wall);
 
 	return idle_time;
 }
@@ -664,7 +660,7 @@ static void do_dbs_timer(struct work_struct *work) {
 
 	cpufreq_smartmax_timer(this_smartmax);
 
-	queue_delayed_work_on(cpu, smartmax_wq, &this_smartmax->work, delay);
+	schedule_delayed_work_on(cpu, &this_smartmax->work, delay);
 	mutex_unlock(&this_smartmax->timer_mutex);
 }
 
@@ -1448,12 +1444,6 @@ static int __init cpufreq_smartmax_init(void) {
 		min_sampling_rate = MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(10);
 	}
 
-	smartmax_wq = alloc_workqueue("smartmax_wq", WQ_HIGHPRI, 0);
-	if (!smartmax_wq) {
-		printk(KERN_ERR "Failed to create smartmax_wq workqueue\n");
-		return -EFAULT;
-	}
-
 	up_rate = DEFAULT_UP_RATE;
 	down_rate = DEFAULT_DOWN_RATE;
 	suspend_ideal_freq = DEFAULT_SUSPEND_IDEAL_FREQ;
@@ -1507,7 +1497,6 @@ static void __exit cpufreq_smartmax_exit(void) {
 		this_smartmax = &per_cpu(smartmax_info, i);
 		mutex_destroy(&this_smartmax->timer_mutex);
 	}
-	destroy_workqueue(smartmax_wq);
 }
 
 module_exit(cpufreq_smartmax_exit);
