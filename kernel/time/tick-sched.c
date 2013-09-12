@@ -500,14 +500,17 @@ void tick_nohz_idle_enter(void)
  */
 void tick_nohz_irq_exit(void)
 {
+	unsigned long flags;
 	struct tick_sched *ts = &__get_cpu_var(tick_cpu_sched);
 
 	if (!ts->inidle)
 		return;
-		
-	/* Cancel the timer because CPU already waken up from the C-states*/
-	menu_hrtimer_cancel();
+
+	local_irq_save(flags);
+
 	tick_nohz_stop_sched_tick(ts);
+
+	local_irq_restore(flags);
 }
 
 /**
@@ -927,7 +930,7 @@ void tick_cancel_sched_timer(int cpu)
 		hrtimer_cancel(&ts->sched_timer);
 # endif
 
-	ts->nohz_mode = NOHZ_MODE_INACTIVE;
+	memset(ts, 0, sizeof(*ts));
 }
 #endif
 
