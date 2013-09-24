@@ -740,6 +740,12 @@ out:
 
 #endif /* USE_PGTABLE_MAPPING */
 
+/*
+ * If this becomes a separate module, register zs_init() with
+ * module_init(), zs_exit with module_exit(), and remove zs_initialized
+*/
+static int zs_initialized;
+
 static int zs_cpu_notifier(struct notifier_block *nb, unsigned long action,
 				void *pcpu)
 {
@@ -804,7 +810,7 @@ fail:
  */
 struct zs_pool *zs_create_pool(gfp_t flags)
 {
-	int i, ovhd_size;
+	int i, error, ovhd_size;
 	struct zs_pool *pool;
 
 	ovhd_size = roundup(sizeof(*pool), PAGE_SIZE);
@@ -1056,9 +1062,3 @@ u64 zs_get_total_size_bytes(struct zs_pool *pool)
 	return npages << PAGE_SHIFT;
 }
 EXPORT_SYMBOL_GPL(zs_get_total_size_bytes);
-
-module_init(zs_init);
-module_exit(zs_exit);
-
-MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("Nitin Gupta <ngupta@vflare.org>");
